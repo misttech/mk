@@ -10,7 +10,9 @@
 #include <lib/affine/ratio.h>
 #include <lib/fit/defer.h>
 #include <lib/ktrace.h>
+#if 0  //__MK__
 #include <lib/userabi/vdso.h>
+#endif  //__MK__
 #include <platform.h>
 #include <zircon/errors.h>
 #include <zircon/time.h>
@@ -77,7 +79,9 @@ void IdlePowerThread::UpdateMonotonicClock(cpu_num_t current_cpu,
         // It must also update its platform timer to account for any monotonic timers that
         // are present.
         timer_unpause_monotonic();
+#if 0   //__MK__
         VDso::SetMonotonicTicksOffset(timer_get_mono_ticks_offset());
+#endif  //__MK__
         percpu::Get(current_cpu).timer_queue.UpdatePlatformTimer();
       }
     } else if (current_state == kSuspendToActive) {

@@ -4,7 +4,6 @@
 # license that can be found in the LICENSE file or at
 # https://opensource.org/licenses/MIT
 
-import("//build/components.gni")
 import("//build/cpp/library_headers.gni")
 import("//build/test.gni")
 import("//build/toolchain/toolchain_environment.gni")
@@ -87,12 +86,6 @@ if (is_kernel) {
 }
 
 if (is_fuchsia) {
-  fuchsia_unittest_package("tests") {
-    component_name = "x86-user-copy-tests"
-    package_name = component_name
-    deps = [ ":x86-user-copy-tests" ]
-  }
-
   test("x86-user-copy-tests") {
     sources = [ "selection-tests.cc" ]
     deps = [

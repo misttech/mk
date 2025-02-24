@@ -18,10 +18,12 @@ zx_library("syscalls") {
   sources = []
 
   # Depend on the files generated from the syscall IDL.
-  public_deps = [ "//zircon/vdso:private" ]
+  #public_deps = [ "//zircon/vdso:private" ]
 
   if (!kernel_no_userabi) {
     deps = [ ":impl" ]
+  } else {
+    deps = [ ":impl_x86" ]
   }
 }
 
@@ -80,7 +82,8 @@ source_set("impl") {
     "//zircon/kernel/lib/power-management",
     "//zircon/kernel/lib/thread_sampler",
     "//zircon/kernel/lib/user_copy",
-    "//zircon/kernel/lib/userabi:headers",
+
+    #"//zircon/kernel/lib/userabi:headers",
     "//zircon/kernel/object",
     "//zircon/system/ulib/explicit-memory",
     "//zircon/system/ulib/region-alloc",
@@ -100,6 +103,24 @@ source_set("dispatch") {
     ":headers",
     "//zircon/kernel/lib/boot-options",
     "//zircon/kernel/lib/ktl",
-    "//zircon/kernel/lib/userabi:headers",
+    "//zircon/kernel/object",
+
+    #"//zircon/kernel/lib/userabi:headers",
   ]
+}
+
+source_set("impl_x86") {
+  visibility = [ ":*" ]
+  sources = [ "system_x86.cc" ]
+  deps = [
+    ":dispatch",
+    ":headers",
+    "//zircon/kernel/lib/console",
+  ]
+  if (current_cpu == "x64") {
+    deps += [
+      "//zircon/kernel/lib/acpi_lite",
+      "//zircon/kernel/platform/pc",
+    ]
+  }
 }

@@ -10,7 +10,9 @@
 #include <lib/fxt/interned_category.h>
 #include <lib/ktrace.h>
 #include <lib/ktrace/ktrace_internal.h>
+#if 0  //__MK__
 #include <lib/syscalls/zx-syscall-numbers.h>
+#endif  //__MK__
 #include <lib/zircon-internal/thread_annotations.h>
 #include <platform.h>
 #include <string.h>

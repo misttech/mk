@@ -32,7 +32,6 @@ source_set("zircon-internal") {
 }
 
 if (!is_kernel) {
-  import("//build/components.gni")
   import("//build/config/linker.gni")
   import("//build/test.gni")
 
@@ -79,12 +78,5 @@ if (!is_kernel) {
         "//zircon/system/ulib/zx",
       ]
     }
-  }
-
-  fuchsia_unittest_package("zircon-internal-tests") {
-    deps = [
-      ":zircon-internal-unittests",
-      "//src/sys/testing/elftest",
-    ]
   }
 }

@@ -4,7 +4,6 @@
 # license that can be found in the LICENSE file or at
 # https://opensource.org/licenses/MIT
 
-import("//build/components.gni")
 import("//build/cpp/library_headers.gni")
 import("//build/test.gni")
 import("//build/toolchain/toolchain_environment.gni")
@@ -75,12 +74,6 @@ if (toolchain_environment == "kernel") {
     deps = [ "//zircon/kernel/lib/libc:headers" ]
   }
 } else {
-  fuchsia_unittest_package("tests") {
-    component_name = "x86-cstring-tests"
-    package_name = component_name
-    deps = [ ":x86-cstring-tests" ]
-  }
-
   test("x86-cstring-tests") {
     sources = [
       "alternative-tests.cc",
