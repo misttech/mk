@@ -3,6 +3,11 @@
 	url = https://boringssl.googlesource.com/boringssl
 	name = boringssl
 	ignore = all
+[submodule "lk"]
+	path = third_party/lk
+	url = https://github.com/misttech/lk.git
+	name = lk
+	ignore = all
 [submodule "third_party/lz4"]
 	path = third_party/lz4
 	url = https://fuchsia.googlesource.com/third_party/lz4
