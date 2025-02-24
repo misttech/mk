@@ -9,7 +9,9 @@
 #include <lib/backtrace.h>
 #include <lib/console.h>
 #include <lib/debuglog.h>
+#if 0  //__MK__
 #include <lib/jtrace/jtrace.h>
+#endif  //__MK__
 #include <platform.h>
 #include <stdio.h>
 #include <string.h>
@@ -109,8 +111,10 @@ void platform_panic_start(PanicStartHaltOtherCpus option) {
   static ktl::atomic<int> panic_started(0);
   if (panic_started.exchange(1) == 0) {
     dlog_bluescreen_init();
+#if 0   //__MK__
     // Attempt to dump the current debug trace buffer, if we have one.
     jtrace_dump(jtrace::TraceBufferType::Current);
+#endif  //__MK__
   }
 
   if (option == PanicStartHaltOtherCpus::Yes) {

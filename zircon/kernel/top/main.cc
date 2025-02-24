@@ -18,7 +18,9 @@
 #include <lib/cxxabi-dynamic-init/cxxabi-dynamic-init.h>
 #include <lib/debuglog.h>
 #include <lib/heap.h>
+#if 0  //__MK__
 #include <lib/jtrace/jtrace.h>
+#endif  //__MK__
 #include <lib/lockup_detector.h>
 #if 0  //__MK__
 #include <lib/userabi/userboot.h>
@@ -66,19 +68,23 @@ bool ConstructorsCalled() { return lk_global_constructors_called(); }
 
 // called from arch code
 void lk_main(paddr_t handoff_paddr) {
+#if 0  //__MK__
   // Initialize debug tracing (if enabled) as early as possible. This allows
   // debug tracing to be used before the debug log comes up, and before global
   // constructors are executed.  Note that if debug tracing is configured to be
   // persistent, then trace records will be dropped until we get to the point
   // that the ZBI is processed and our NVRAM location is discovered.
   jtrace_init();
+#endif
 
   // get us into some sort of thread context so Thread::Current works.
   thread_init_early();
 
+#if 0   //__MK__
   // Now that Thread::Current works, jtrace is allowed to capture TIDs and
   // disable preemption while recording entries.
   jtrace_set_after_thread_init_early();
+#endif  //__MK__
 
   // bring the debuglog up early so we can safely printf
   dlog_init_early();
