@@ -2,7 +2,7 @@
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
 
-import("//build/images/vbmeta.gni")
+#import("//build/images/vbmeta.gni")
 import("//build/testing/boot_tests/boot_test.gni")
 import("//build/testing/environments.gni")
 import("//build/zbi/zbi.gni")
@@ -165,14 +165,14 @@ template("zbi_test") {
     output_zbi = "$target_out_dir/$output_zbi"
   }
 
-  if (use_vbmeta) {
-    vbmeta_target = "${target_name}.vbmeta"
-    vbmeta(vbmeta_target) {
-      forward_variables_from(invoker, [ "visibility" ])
-      testonly = true
-      zbi = ":$zbi_target"
-    }
-  }
+  #if (use_vbmeta) {
+  #  vbmeta_target = "${target_name}.vbmeta"
+  #  vbmeta(vbmeta_target) {
+  #    forward_variables_from(invoker, [ "visibility" ])
+  #    testonly = true
+  #    zbi = ":$zbi_target"
+  #  }
+  #}
 
   boot_test(main_target) {
     forward_variables_from(invoker,
@@ -189,8 +189,8 @@ template("zbi_test") {
       environments = _all_emu_envs
     }
     zbi = ":$zbi_target"
-    if (use_vbmeta) {
-      vbmeta = ":$vbmeta_target"
-    }
+    #if (use_vbmeta) {
+    #  vbmeta = ":$vbmeta_target"
+    #}
   }
 }

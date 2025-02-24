@@ -5,19 +5,10 @@
 import("//build/config/clang/clang_toolchain_info.gni")
 import("//build/config/compilation_modes.gni")
 import("//build/config/python_interpreter.gni")
-import("//build/icu/build_config.gni")
 import("//build/rust/build.gni")
 import("//build/toolchain/rbe.gni")
 import("//build/toolchain/restat.gni")
 import("//build/tracer/tracer.gni")
-
-# The GN files in //third_party/flutter all use $flutter_root/
-# in place of // to refer to the root of the flutter source tree.
-flutter_root = "//third_party/flutter"
-
-# The GN files in //third_party/cobalt all use $cobalt_root/
-# in place of // to refer to the root of the cobalt source tree.
-cobalt_root = "//third_party/cobalt"
 
 declare_args() {
   # If set, the build will produce compilation analysis dumps, used for code
@@ -220,7 +211,7 @@ if (current_os == "fuchsia") {
   is_win = true
 }
 
-support_rust = zircon_toolchain == false
+support_rust = false
 
 if (defined(toolchain_variant.is_basic) && toolchain_variant.is_basic) {
   # The toolchains created by `basic_toolchain()` do not support c/cpp/rust.
@@ -406,10 +397,6 @@ if (in_default_toolchain) {
 # Prepend the prefix configs, if any, before the default ones.
 default_common_binary_configs = toolchain_variant.prefix_configs
 
-# Enable the rust compiler's parallel front-end for all binaries.
-default_common_binary_configs +=
-    [ "//build/config/rust:parallel_frontend_threads" ]
-
 # Note that Zircon toolchains and non-Zircon ones have a very different set
 # of default configs for all target types.
 if (zircon_toolchain == false) {
@@ -428,12 +415,6 @@ if (zircon_toolchain == false) {
     "//build/config:no_rtti",
     "//build/config:symbol_visibility_hidden",
     "//build/config:libcpp_remove_transitive_includes",
-    "//build/config/rust:default_debug_assertions",
-    "//build/config/rust:incremental",
-    "//build/config/rust:no_features",
-    "//build/config/rust:target",
-    "//build/config/rust:cap_lints",
-    "//build/config/rust:2018_idioms",
     "//build/config:werror",
     "//build/config:no-template-backtrace-limit",
   ]
@@ -454,9 +435,6 @@ if (zircon_toolchain == false) {
       "//build/config:icf",
       "//build/config:thread_safety_annotations",
       "//build/config/fuchsia:dynamic_rust_standard_library",
-      "//build/config/fuchsia:large_rust_stack",
-      "//build/config/rust:panic_abort",
-      "//build/config/rust:v0_symbol_mangling",
 
       # TODO(mcgrathr): Perhaps restrict this to only affected code.
       # For now, safest to do it everywhere.
@@ -550,46 +528,6 @@ if (zircon_toolchain == false) {
   default_executable_deps = []
 }
 
-# Rust proc macros don't support (Thin)LTO, so always remove it.
-default_rust_proc_macro_configs = default_shared_library_configs + [
-                                    "//build/config/lto",
-                                    "//build/config/lto:thinlto",
-                                  ] -
-                                  [
-                                    "//build/config/lto",
-                                    "//build/config/lto:thinlto",
-                                  ]
-
-# Known e2e test libraries. Any tests that transitively depend on these
-# libraries are considered e2e tests.
-#
-# See also: docs/concepts/testing/coverage.md
-#
-# [START e2e_test_libs]
-e2e_test_libs = [
-  "//sdk/testing/sl4f/client",
-  "//third_party/mobly($host_toolchain)",
-  "//src/testing/end_to_end/honeydew($host_toolchain)",
-]
-
-# For libraries only supported on Linux hosts, we must use host_os to determine
-# whether to include them. The is_linux condition will not function as naively expected
-# because it applies to the current toolchain which may not be a host toolchain
-# when this file is loaded.
-if (host_os == "linux") {
-  e2e_test_libs += [ "//tools/emulator($host_toolchain)" ]
-}
-
-# [END e2e_test_libs]
-
-# Known unit tests for e2e test libraries.
-e2e_lib_unit_tests = [
-  "//sdk/testing/sl4f/client:tests",
-  "//tools/emulator:tests",
-  "//src/testing/end_to_end/honeydew:unit_tests",
-  "//src/testing/end_to_end/mobly_driver/tests/unit_tests:tests",
-]
-
 # Apply that default list to the binary target types.
 set_defaults("source_set") {
   configs = default_common_binary_configs
@@ -603,14 +541,6 @@ set_defaults("shared_library") {
   configs = default_shared_library_configs
 }
 
-set_defaults("rust_library") {
-  configs = default_common_binary_configs
-}
-
-set_defaults("rust_proc_macro") {
-  configs = default_rust_proc_macro_configs
-}
-
 set_defaults("loadable_module") {
   configs = default_shared_library_configs
 }
@@ -621,52 +551,6 @@ set_defaults("executable") {
 
 set_defaults("cc_test_executable") {
   configs = default_executable_configs
-}
-
-# Rustc wrapper defaults
-default_rust_configs = [
-  "//build/config/rust/lints:deny_unused_crate_dependencies",
-  "//build/config/rust/lints:deny_unused_results",
-  "//build/config/rust/lints:allow_unused_results",
-]
-
-set_defaults("rustc_binary") {
-  configs = default_executable_configs + default_rust_configs
-}
-
-set_defaults("rustc_binary_sdk") {
-  configs = default_executable_configs + default_rust_configs
-}
-
-set_defaults("rustc_test") {
-  configs = default_executable_configs + default_rust_configs
-}
-
-set_defaults("rustc_library") {
-  configs = default_common_binary_configs + default_rust_configs
-}
-
-set_defaults("rustc_library_with_features") {
-  configs = default_common_binary_configs + default_rust_configs
-}
-
-set_defaults("rustc_wasm_library") {
-  configs = default_shared_library_configs + default_rust_configs
-}
-
-set_defaults("rustc_cdylib") {
-  configs = default_shared_library_configs + default_rust_configs
-}
-set_defaults("rustc_dylib") {
-  configs = default_shared_library_configs + default_rust_configs
-}
-
-set_defaults("rustc_macro") {
-  configs = default_shared_library_configs + default_rust_configs
-}
-
-set_defaults("rustc_staticlib") {
-  configs = default_common_binary_configs + default_rust_configs
 }
 
 # For each built-in target type `foo`, create a wrapping template `_foo_interal_wrapper`.
@@ -683,8 +567,6 @@ _built_in_target_types_with_internal_wrapper = [
   "generated_file",
   "group",
   "loadable_module",
-  "rust_library",
-  "rust_proc_macro",
   "shared_library",
   "source_set",
   "static_library",
@@ -1473,9 +1355,6 @@ foreach(_target_type,
         if (defined(invoker.metadata)) {
           forward_variables_from(invoker.metadata, "*")
         }
-
-        # Don't collect rlibs from transitive deps
-        rust_barrier = []
       }
     }
   }
@@ -1711,18 +1590,6 @@ declare_args() {
     },
 
     {
-      configs = [ "//build/config/profile:coverage-rust" ]
-      tags = [
-        # Note this does not incluhde "llvm-profdata" because that is only
-        # actually used to check if C++ code will use such instrumentation.
-        "coverage",
-        "debugdata",
-        "instrumented",
-        "needs-writable-globals",
-      ]
-    },
-
-    {
       configs = [ "//build/config/profile:coverage-cts" ]
       tags = [
         "coverage",
@@ -1734,17 +1601,6 @@ declare_args() {
 
     {
       configs = [ "//build/config/profile" ]
-      tags = [
-        "debugdata",
-        "instrumented",
-        "llvm-profdata",
-        "needs-writable-globals",
-        "profile",
-      ]
-    },
-
-    {
-      configs = [ "//build/config/profile:profile-rust" ]
       tags = [
         "debugdata",
         "instrumented",
@@ -1844,10 +1700,7 @@ declare_args() {
       name = "asan-fuzzer"
       forward_variables_from(_asan_variant, "*", [ "toolchain_args" ])
       toolchain_args = _asan_fuzzer_toolchain_args
-      configs += [
-        "//build/config/fuzzer",
-        "//build/config/sanitizers:rust-asan",
-      ]
+      configs += [ "//build/config/fuzzer" ]
       configs += _fuzzer_remove_common_configs  # Ensure present when removing.
       remove_common_configs += _fuzzer_remove_common_configs
       remove_shared_configs = _fuzzer_remove_shared_configs
@@ -1931,33 +1784,11 @@ declare_args() {
     },
 
     {
-      name = "host_coverage-rust"
-      select_variant = []
-      select_variant = [
-        {
-          variant = "coverage-rust"
-          host = true
-        },
-      ]
-    },
-
-    {
       name = "host_profile"
       select_variant = []
       select_variant = [
         {
           variant = "profile"
-          host = true
-        },
-      ]
-    },
-
-    {
-      name = "host_profile-rust"
-      select_variant = []
-      select_variant = [
-        {
-          variant = "profile-rust"
           host = true
         },
       ]
@@ -2116,30 +1947,19 @@ declare_args() {
 # Whether profile instrumentation is enabled for collecting coverage.
 is_coverage = select_variant + [
                 "coverage",
-                "coverage-rust",
                 "coverage-cts",
                 "profile",
               ] -
               [
                 "coverage",
-                "coverage-rust",
                 "coverage-cts",
                 "profile",
               ] != select_variant
 is_clang_coverage =
     select_variant + [ "coverage" ] - [ "coverage" ] != select_variant
-is_rust_coverage =
-    select_variant + [ "coverage-rust" ] - [ "coverage-rust" ] != select_variant
 is_cts_coverage =
     select_variant + [ "coverage-cts" ] - [ "coverage-cts" ] != select_variant
-is_profile = select_variant + [
-               "profile",
-               "profile-rust",
-             ] -
-             [
-               "profile",
-               "profile-rust",
-             ] != select_variant
+is_profile = select_variant + [ "profile" ] - [ "profile" ] != select_variant
 
 # Whether sanitizer instrumentation is enabled.
 is_asan = select_variant + [
@@ -2441,27 +2261,6 @@ template("_fuchsia_binary") {
         # instrumentation-runtime-specific libraries.
         data_deps += [ "//build/toolchain/runtime:static-libc++-deps" ]
       }
-      if (defined(crate_root)) {
-        # TODO(https://fxbug.dev/42135447): Handle this for (non-rlib) static libraries.
-        should_add_shared_rust_runtime = false
-        dynamic_rust_config =
-            [ "//build/config/fuchsia:dynamic_rust_standard_library" ]
-        if (defined(configs) &&
-            configs + dynamic_rust_config - dynamic_rust_config != configs) {
-          should_add_shared_rust_runtime = true
-        }
-        if (should_add_shared_rust_runtime) {
-          data_deps += [ "//build/toolchain/runtime:shared-rust-libstd-deps" ]
-
-          # libstd depends on fdio and expects it to be available in the linker
-          # search path, so provide it here.
-          deps += [ "//sdk/lib/fdio" ]
-        }
-        if (!defined(inputs)) {
-          inputs = []
-        }
-        inputs += restat_rust_wrapper_inputs
-      }
     }
   }
 }
@@ -2550,13 +2349,6 @@ template("variant_target") {
 
     if (!defined(output_name)) {
       output_name = target_name
-    }
-
-    if (defined(crate_root)) {
-      if (!defined(inputs)) {
-        inputs = []
-      }
-      inputs += restat_rust_wrapper_inputs
     }
   }
 
@@ -3077,15 +2869,6 @@ template("_fuchsia_shared_library") {
           }
         },
       ]
-
-      # Don't collect rlibs from transitive deps. This is used by the
-      # rust_auxiliary template when collecting rlib dependencies.
-      rust_barrier = []
-
-      if (defined(invoker.crate_type)) {
-        rlib = [ "--extern=$crate_name=$_link_output_path" ]
-        searchdir = [ "-Ldependency=$_link_output_dir" ]
-      }
     }
   }
 }
@@ -3204,46 +2987,28 @@ if (toolchain_variant.with_shared || toolchain_variant.is_pic_default) {
                                  ])
           target_name = _target_name
 
-          # Avoid redirection for Rust shared libraries (dylibs and cdylibs).
-          # See https://fxbug.dev/387208039.
-          _is_rust_target = defined(invoker.crate_root)
-          variant_shared_redirection =
-              !_is_rust_target && toolchain_variant.with_shared
+          variant_shared_redirection = toolchain_variant.with_shared
           metadata = {
             if (defined(invoker.metadata)) {
               forward_variables_from(invoker.metadata, "*")
-            }
-
-            if (!defined(invoker.crate_type) || invoker.crate_type != "dylib") {
-              # Don't collect rlibs from transitive deps
-              rust_barrier = []
             }
           }
         }
       }
     } else {
       template("shared_library") {
-        _is_rust_target = defined(invoker.crate_root)
-        if (_is_rust_target) {
-          # Avoid redirection for Rust shared libraries (dylibs and cdylibs).
-          # See https://fxbug.dev/387208039.
-          _fuchsia_shared_library(target_name) {
-            forward_variables_from(invoker, "*")
-          }
-        } else {
-          # In a base toolchain that has an shlib_toolchain, shared_library just
-          # redirects to the same target in the -shared toolchain.
-          group(target_name) {
-            public_deps = [ ":$target_name(${current_toolchain}-shared)" ]
-            forward_variables_from(invoker,
-                                   [
-                                     "applicable_licenses",
-                                     "testonly",
-                                     "visibility",
-                                   ])
-          }
-          not_needed(invoker, "*")
+        # In a base toolchain that has an shlib_toolchain, shared_library just
+        # redirects to the same target in the -shared toolchain.
+        group(target_name) {
+          public_deps = [ ":$target_name(${current_toolchain}-shared)" ]
+          forward_variables_from(invoker,
+                                 [
+                                   "applicable_licenses",
+                                   "testonly",
+                                   "visibility",
+                                 ])
         }
+        not_needed(invoker, "*")
       }
     }
   } else {
@@ -3890,203 +3655,6 @@ template("static_library") {
   }
 }
 _built_in_target_types_without_public_wrapper -= [ "static_library" ]
-
-# This wraps the GN built-in rust_library template:
-#
-# * When preserving unchanged outputs (restat), include the wrapper script
-#   as a dependency.
-# * Record the output for this target in metadata, used by clippy to access
-#   direct and transitive dependencies.
-#
-template("rust_library") {
-  # rust_auxiliary has minimal imports unless we're including clippy or rustdoc
-  # should be safe to include here
-  import("//build/rust/rust_auxiliary.gni")
-  actual_name = "$target_name"
-
-  # Reuse the name (without .actual) defined in rustc_artifact.gni
-  if (defined(invoker.rust_auxiliary_name)) {
-    _rust_auxiliary_name = invoker.rust_auxiliary_name
-  } else {
-    _rust_auxiliary_name = "$target_name.aux"
-  }
-
-  if (defined(invoker.output_dir)) {
-    _searchdir_path = invoker.output_dir
-  } else {
-    _searchdir_path = get_label_info(":$target_name", "target_out_dir")
-    if (rust_one_rlib_per_dir) {
-      _searchdir_path += "/" + target_name
-    }
-  }
-  _rlib_path = "$_searchdir_path/lib${invoker.output_name}.rlib"
-
-  rust_auxiliary(_rust_auxiliary_name) {
-    forward_variables_from(invoker, _rust_auxiliary_variables_to_forward)
-    invoker_deps = invoker.deps
-    rlib_path = _rlib_path
-    searchdir_path = _searchdir_path
-    if (!defined(rust_crate_type)) {
-      rust_crate_type = "rlib"
-    }
-  }
-
-  _rust_library_internal_wrapper(actual_name) {
-    forward_variables_from(invoker,
-                           "*",
-                           [
-                             "applicable_licenses",
-                             "metadata",
-                             "visibility",
-                             "rust_crate_type",
-                             "enable_clippy_first_party",
-                             "include_rustdoc_first_party",
-                             "original_target_name",
-                             "no_rust_aux_build_config_dep",
-                             "define_rustdoc_test_override",
-                           ])
-    forward_variables_from(invoker,
-                           [
-                             "applicable_licenses",
-                             "visibility",
-                           ])
-
-    if (!defined(inputs)) {
-      inputs = []
-    }
-    inputs += restat_rust_wrapper_inputs
-
-    output_dir = _searchdir_path
-
-    _rlib_path = rebase_path(_rlib_path, root_build_dir)
-    _searchdir_path = rebase_path(_searchdir_path, root_build_dir)
-
-    if (!defined(public_deps)) {
-      public_deps = []
-    }
-    if (defined(invoker.no_rust_aux_build_config_dep)) {
-      _no_rust_aux_build_config_dep = invoker.no_rust_aux_build_config_dep
-    } else {
-      _no_rust_aux_build_config_dep = false
-    }
-    if (!_no_rust_aux_build_config_dep) {
-      public_deps += [ ":$_rust_auxiliary_name" ]
-    }
-    metadata = {
-      if (defined(invoker.metadata)) {
-        forward_variables_from(invoker.metadata, "*")
-      }
-
-      rlib = [ "--extern=$crate_name=$_rlib_path" ]
-      searchdir = [ "-Ldependency=$_searchdir_path" ]
-      rust_barrier = []
-    }
-  }
-}
-_built_in_target_types_without_public_wrapper -= [ "rust_library" ]
-
-# This wraps the GN built-in rust_proc_macro template:
-#
-# * Redirect to base variant if not already there (we do not want to build proc
-#   macros with sanitizers and then link them into the compiler).
-# * When preserving unchanged outputs (restat), include the wrapper script
-#   as a dependency.
-# * Record the output for this target in metadata, used by clippy to access
-#   direct and transitive dependencies.
-#
-template("rust_proc_macro") {
-  if (current_toolchain != toolchain_variant.base) {
-    # proc_macros are loadable modules that are used by the rustc compiler itself,
-    # and as such, need to be compiled in the _base_ (non-sanitizer) variant of
-    # host toolchain.
-    #
-    # We don't redirect to host here, but leave that up to higher level templates.
-    group(target_name) {
-      public_deps = [ ":$target_name(${toolchain_variant.base})" ]
-    }
-    not_needed(invoker, "*")
-  } else {
-    actual_name = "$target_name"
-
-    # Reuse the name (without .actual) defined in rustc_artifact.gni
-    if (defined(invoker.rust_auxiliary_name)) {
-      _rust_auxiliary_name = invoker.rust_auxiliary_name
-    } else {
-      _rust_auxiliary_name = "$target_name.aux"
-    }
-
-    if (defined(invoker.output_dir)) {
-      _searchdir_path = invoker.output_dir
-    } else {
-      _searchdir_path = get_label_info(":$target_name", "target_out_dir")
-      if (rust_one_rlib_per_dir) {
-        _searchdir_path += "/" + target_name
-      }
-    }
-    _output_extension = "so"
-    if (host_os == "mac") {
-      _output_extension = "dylib"
-    }
-    _rlib_path = "$_searchdir_path/lib${invoker.output_name}.$_output_extension"
-
-    rust_auxiliary(_rust_auxiliary_name) {
-      forward_variables_from(invoker, _rust_auxiliary_variables_to_forward)
-      invoker_deps = invoker.deps
-      rlib_path = _rlib_path
-      searchdir_path = _searchdir_path
-      if (!defined(rust_crate_type)) {
-        rust_crate_type = "proc-macro"
-      }
-    }
-
-    _rust_proc_macro_internal_wrapper(target_name) {
-      forward_variables_from(invoker,
-                             "*",
-                             [
-                               "applicable_licenses",
-                               "crate_name",
-                               "metadata",
-                               "no_rust_aux_build_config_dep",
-                             ])
-      forward_variables_from(invoker,
-                             [
-                               "applicable_licenses",
-                               "crate_name",
-                             ])
-      if (!defined(inputs)) {
-        inputs = []
-      }
-      inputs += restat_rust_wrapper_inputs
-
-      output_extension = _output_extension
-      output_dir = _searchdir_path
-
-      _rlib_path = rebase_path(_rlib_path, root_build_dir)
-      _searchdir_path = rebase_path(_searchdir_path, root_build_dir)
-
-      if (!defined(public_deps)) {
-        public_deps = []
-      }
-      if (defined(invoker.no_rust_aux_build_config_dep)) {
-        _no_rust_aux_build_config_dep = invoker.no_rust_aux_build_config_dep
-      } else {
-        _no_rust_aux_build_config_dep = false
-      }
-      if (!_no_rust_aux_build_config_dep) {
-        public_deps += [ ":$_rust_auxiliary_name" ]
-      }
-      metadata = {
-        if (defined(invoker.metadata)) {
-          forward_variables_from(invoker.metadata, "*")
-        }
-        rlib = [ "--extern=$crate_name=$_rlib_path" ]
-        searchdir = [ "-Ldependency=$_searchdir_path" ]
-        rust_barrier = []
-      }
-    }
-  }
-}
-_built_in_target_types_without_public_wrapper -= [ "rust_proc_macro" ]
 
 assert(
     _built_in_target_types_without_public_wrapper == [],

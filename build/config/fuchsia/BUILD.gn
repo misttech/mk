@@ -10,14 +10,7 @@ import("//build/config/current_target_tuple.gni")
 import("//build/config/fuchsia/target_api_level.gni")
 import("//build/config/sanitizers/sanitizer_default_options.gni")
 import("//build/config/sysroot.gni")
-import("//build/icu/third_party_icu_headers.gni")
 import("//build/toolchain/ccache.gni")
-import("//build/toolchain/rbe.gni")
-import("//src/lib/icu/third_party_icu_headers.gni")
-
-if (support_rust) {
-  import("//build/rust/config.gni")
-}
 
 # ccache, at least in some configurations, caches preprocessed content. This
 # means that by the time the compiler sees it, macros are unrolled. A number
@@ -61,61 +54,6 @@ config("compiler") {
     ldflags += [ "-Wl,--build-id=$build_id_format" ]
   }
 
-  if (support_rust) {
-    if (!is_debug) {
-      # https://fxbug.dev/42166874#c15: forcing one codegen unit produces
-      # smaller binaries but makes builds slower.
-      # Enforce one codegen unit only when we really care about
-      # size (release builds).
-      configs += [ "//build/config/rust:one_codegen_unit" ]
-    }
-
-    _clang_resource_dir =
-        "${rebased_clang_dir}/${clang_target_toolchain_info.resource_dir}"
-
-    # When linking C++ runtime libraries into Rust binaries, we should use
-    # the correct multilib variant.
-    #
-    # TODO(https://fxbug.dev/42177702): Rather then hardcoding the directory names here,
-    # these should ideally come from runtime.json.
-    _multilib_dir = ""
-    if (toolchain_variant.tags + [ "asan" ] - [ "asan" ] !=
-        toolchain_variant.tags) {
-      _multilib_dir = "/asan+noexcept"
-    } else if (toolchain_variant.tags + [ "hwasan" ] - [ "hwasan" ] !=
-               toolchain_variant.tags) {
-      _multilib_dir = "/hwasan+noexcept"
-    } else {
-      _multilib_dir = "/noexcept"
-    }
-
-    # Which libc++ to link:
-    _libcxx_dir =
-        "${rebased_clang_dir}/lib/${current_target_tuple}${_multilib_dir}"
-
-    rustflags = [
-      "-L",
-      rebase_path("$sysroot/lib", root_build_dir),
-      "-Clinker=$rebased_clang_prefix/lld",
-      "-Clink-arg=--sysroot=" + rebase_path(sysroot, root_build_dir),
-
-      # These could alternatively come from clang's '--print-search-dirs', but that would require an
-      # exec_script and post-processing of the output or a JSON file generated during the toolchain
-      # build.
-      "-Clink-arg=-L${_libcxx_dir}",
-      "-Clink-arg=-L${_clang_resource_dir}/lib/${current_target_tuple}",
-      "-Clink-arg=--pack-dyn-relocs=relr",
-      "-Clink-arg=-dynamic-linker=ld.so.1",
-      "-Clink-arg=--icf=all",
-    ]
-
-    if (rust_rbe_enable) {
-      rustflags += [ "--remote-flag=--cxx-stdlibdir=${_libcxx_dir}" ]
-    }
-
-    # TODO(https://fxbug.dev/42130451): Eventually the default in the compler driver.
-    rustflags += [ "-Clink-arg=-zrel" ]
-  }
 }
 
 config("compiler_sysroot") {
@@ -197,29 +135,6 @@ config("static_cpp_standard_library") {
     # applies to both libgcc and libunwind, whichever is used by Clang.
     "-static-libgcc",
   ]
-
-  # -static-libstdc++ and -static-libgcc options are handled by the C++
-  # compiler driver (that is clang), whereas these link-args get passed
-  # straight to lld by rustc and need to be expanded manually.
-  rustflags = [ "-Clink-args=--push-state -Bstatic -lc++ -Bdynamic -lm --pop-state -l:libunwind.a" ]
-}
-
-config("dynamic_rust_standard_library") {
-  rustflags = [ "-Cprefer-dynamic" ]
-}
-
-config("static_rust_standard_library") {
-  rustflags = [ "-Cprefer-dynamic=no" ]
-}
-
-# Configure a larger (2MB) stack size for Rust binaries.
-#
-# Currently, threads created by Rust's libstd have a hardcoded default stack
-# size of 2MB on Fuchsia. This can create overflows when moving code to the
-# main thread, whose default stack size is 256kB. To remove this wrinkle, the
-# default stack size is changed to 2MB for Rust binaries.
-config("large_rust_stack") {
-  rustflags = [ "-Clink-args=-zstack-size=0x200000" ]
 }
 
 # Enable additional integer-math sanitizers
@@ -276,15 +191,7 @@ sanitizer_default_options("scudo_default_options") {
 # will all be removed.
 group("uses-outline-atomics-fxbug98632") {
   visibility = [
-    "${icu_root}:*",
-    "//src/developer/debug/debug_agent/test_data:*",
-    "//src/developer/debug/e2e_tests/inferiors:*",
-    "//src/graphics/examples/vkproto:*",
-    "//src/graphics/examples/vkproto/cmd-buf-benchmark:*",
     "//third_party/boringssl:*",
-    "//third_party/ffmpeg:*",
-    "//third_party/icu/default:*",
-    "//third_party/icu/latest:*",
   ]
   if (current_cpu == "arm64" && is_fuchsia) {
     deps = [ "//src/zircon/lib/zircon" ]

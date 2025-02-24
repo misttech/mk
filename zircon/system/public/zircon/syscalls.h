@@ -25,7 +25,9 @@ __BEGIN_CDECLS
 #define _ZX_SYSCALL_ANNO(attr)  // Nothing for compilers without the support.
 #endif
 
+#if 0  //__MK__
 #include <zircon/syscalls/internal/cdecls.inc>
+#endif  //__MK__
 
 #undef _ZX_SYSCALL_ANNO
 #undef _ZX_SYSCALL_DECL

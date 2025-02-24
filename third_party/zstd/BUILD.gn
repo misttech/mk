@@ -17,7 +17,7 @@ import("//build/zircon/migrated_targets.gni")
 #   3. Update the pinned version of zstd in //integration/third_party/flower
 #   4. Run third_party/rust_crates/forks/zstd-sys/bindgen.sh to update the Rust bindings
 #      and re-enable the check below.
-verify_rust_zstd_sys_crate_binding_version = true
+verify_rust_zstd_sys_crate_binding_version = false
 
 if (verify_rust_zstd_sys_crate_binding_version) {
   # zstd.h Header Version Information

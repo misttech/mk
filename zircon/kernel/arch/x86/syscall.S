@@ -9,7 +9,11 @@
 #include <arch/x86/mp.h>
 #include <lib/code-patching/asm.h>
 #include <arch/code-patches/case-id-asm.h>
+#if 0  //__MK__
 #include <lib/syscalls/zx-syscall-numbers.h>
+#else
+#define ZX_SYS_COUNT 0
+#endif  //__MK__
 
 #define DW_REG_rsp        0x7
 #define DW_REG_rip        0x10
@@ -425,7 +429,9 @@ END_FUNCTION(x86_syscall_cleanup_and_return)
 
 start_syscall_dispatch
 
+#if 0  //__MK__
 #include <lib/syscalls/kernel.inc>
+#endif  //__MK__
 
 #undef VDSO_SYSCALL
 #undef KERNEL_SYSCALL

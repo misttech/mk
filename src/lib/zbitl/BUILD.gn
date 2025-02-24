@@ -20,7 +20,6 @@ zx_library("zbitl") {
   ]
   deps = [
     ":internal.decompress-zstd",
-    "//src/zircon/lib/zircon",
     "//zircon/system/ulib/fbl",
     "//zircon/system/ulib/zx",
     "//zircon/third_party/ulib/cksum",

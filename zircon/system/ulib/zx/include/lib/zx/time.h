@@ -8,7 +8,9 @@
 #include <stdint.h>
 #include <zircon/availability.h>
 #include <zircon/compiler.h>
+#if 0  //__MK__
 #include <zircon/syscalls.h>
+#endif  //__MK__
 #include <zircon/time.h>
 
 #include <ctime>
@@ -121,10 +123,12 @@ class basic_ticks final {
 
   static basic_ticks<kClockId> now();
 
+#if 0  //__MK__
   // Returns the number of ticks contained within one second.
   static basic_ticks<kClockId> per_second() ZX_AVAILABLE_SINCE(7) {
     return basic_ticks(zx_ticks_per_second());
   }
+#endif  //__MK__
 
   // Acquires the number of ticks contained within this object.
   constexpr zx_ticks_t get() const { return value_; }
@@ -315,13 +319,17 @@ constexpr inline duration min(int64_t n) { return duration(ZX_MIN(n)); }
 
 constexpr inline duration hour(int64_t n) { return duration(ZX_HOUR(n)); }
 
+#if 0  //__MK__
 inline zx_status_t nanosleep(zx::time deadline) ZX_AVAILABLE_SINCE(7) {
   return zx_nanosleep(deadline.get());
 }
+#endif  //__MK__
 
+#if 0  //__MK__
 inline time deadline_after(zx::duration nanoseconds) ZX_AVAILABLE_SINCE(7) {
   return time(zx_deadline_after(nanoseconds.get()));
 }
+#endif  //__MK__
 
 }  // namespace zx
 

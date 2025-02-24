@@ -20,7 +20,9 @@
 #include <lib/heap.h>
 #include <lib/jtrace/jtrace.h>
 #include <lib/lockup_detector.h>
+#if 0  //__MK__
 #include <lib/userabi/userboot.h>
+#endif  //__MK__
 #include <platform.h>
 #include <string.h>
 #include <zircon/compiler.h>
@@ -196,8 +198,10 @@ static int bootstrap2(void*) {
   // Give the kernel shell an opportunity to run. If it exits this function, continue booting.
   kernel_shell_init();
 
+#if 0   //__MK__
   dprintf(SPEW, "starting user space\n");
   userboot_init();
+#endif  //__MK__
 
   dprintf(SPEW, "moving to last init level\n");
   lk_primary_cpu_init_level(LK_INIT_LEVEL_USER, LK_INIT_LEVEL_LAST);

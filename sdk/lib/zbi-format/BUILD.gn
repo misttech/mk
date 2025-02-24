@@ -41,5 +41,5 @@ sdk_source_set("zbi-format") {
   # implicit link inputs from default configs.
   configs = []
 
-  non_sdk_deps = [ "//sdk/fidl/zbi:zbi.c.checked-in" ]
+  #non_sdk_deps = [ "//sdk/fidl/zbi:zbi.c.checked-in" ]
 }
