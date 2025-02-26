@@ -16,7 +16,6 @@ zx_library("platform") {
     "efi_test.cc",
     "halt_helper.cc",
     "hw_reboot_reason.cc",
-    "mexec.cc",
     "power.cc",
     "ram_mappable_crashlog.cc",
   ]
@@ -34,7 +33,6 @@ zx_library("platform") {
     "//zircon/kernel/lib/debuglog",
     "//zircon/kernel/lib/init",
     "//zircon/kernel/lib/instrumentation:headers",
-    "//zircon/kernel/lib/jtrace:headers",
     "//zircon/kernel/lib/ktl",
     "//zircon/kernel/lib/persistent-debuglog",
     "//zircon/kernel/lib/root_resource_filter",

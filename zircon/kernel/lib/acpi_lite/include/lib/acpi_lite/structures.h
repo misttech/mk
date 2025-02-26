@@ -441,6 +441,24 @@ static_assert(sizeof(AcpiDbg2Device) == 22);
 #define ACPI_DBG2_SUBTYPE_USB_XHCI 0x0000
 #define ACPI_DBG2_SUBTYPE_USB_EHCI 0x0001
 
+struct AcpiMcfgTable {
+  AcpiSdtHeader header;
+  uint8_t reserved[8];
+
+  size_t size() const { return header.length; }
+  static constexpr auto kSignature = AcpiSignature("MCFG");
+} __PACKED;
+static_assert(sizeof(struct AcpiMcfgTable) == 44);
+
+struct AcpiMcfgAllocation {
+  uint64_t base_address;
+  uint16_t segment;
+  uint8_t start_bus;
+  uint8_t end_bus;
+  uint8_t reserved[4];
+} __PACKED;
+static_assert(sizeof(struct AcpiMcfgAllocation) == 16);
+
 }  // namespace acpi_lite
 
 #endif  // ZIRCON_KERNEL_LIB_ACPI_LITE_INCLUDE_LIB_ACPI_LITE_STRUCTURES_H_

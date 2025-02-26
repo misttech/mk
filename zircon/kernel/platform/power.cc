@@ -10,7 +10,9 @@
 #include <lib/console.h>
 #include <lib/crashlog.h>
 #include <lib/debuglog.h>
+#if 0  //__MK__
 #include <lib/jtrace/jtrace.h>
+#endif  //__MK__
 #include <lib/persistent-debuglog.h>
 #include <platform.h>
 #include <stdio.h>
@@ -58,7 +60,9 @@ void platform_halt(platform_halt_action suggested_action, zircon_crash_reason_t 
   // recover it during a reboot.
   if (reason == ZirconCrashReason::NoCrash) {
     persistent_dlog_invalidate();
+#if 0   //__MK__
     jtrace_invalidate();
+#endif  //__MK__
   }
 
   // Finally, fall into the platform specific halt handler.
