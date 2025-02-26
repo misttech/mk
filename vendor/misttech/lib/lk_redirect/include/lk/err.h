@@ -6,9 +6,6 @@
 #define VENDOR_MISTTECH_LIB_LK_REDIRECT_INCLUDE_LK_ERR_H_
 
 #include <zircon/errors.h>
-#include <zircon/types.h>
-
-typedef zx_status_t status_t;
 
 #define NO_ERROR ZX_OK
 #define ERR_NOT_FOUND ZX_ERR_NOT_FOUND
@@ -18,5 +15,6 @@ typedef zx_status_t status_t;
 #define ERR_INVALID_ARGS ZX_ERR_INVALID_ARGS
 #define ERR_NOT_VALID ZX_ERR_BAD_HANDLE
 #define ERR_NO_MEMORY ZX_ERR_NO_MEMORY
+#define ERR_IO ZX_ERR_IO
 
 #endif  // VENDOR_MISTTECH_LIB_LK_REDIRECT_INCLUDE_LK_ERR_H_

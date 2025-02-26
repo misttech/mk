@@ -6,4 +6,11 @@ import("//build/zircon/zx_library.gni")
 
 zx_library("lk_redirect") {
   public_deps = [ "//zircon/system/ulib/fbl:headers" ]
+
+  deps = [ "//third_party/lk/lib/libc:lk_libc" ]
+}
+
+config("suppress-warning") {
+  cflags_cc = [ "-Wno-implicit-int-conversion" ]
+  cflags = [ "-Wno-implicit-int-conversion" ]
 }
