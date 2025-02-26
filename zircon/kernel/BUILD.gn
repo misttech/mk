@@ -346,6 +346,9 @@ if (is_kernel) {
       "FUTEX_BLOCK_TRACING_ENABLED=$futex_block_tracing_enabled",
       "LOCK_TRACING_ENABLED=$lock_tracing_enabled",
       "EXPERIMENTAL_THREAD_SAMPLER_ENABLED=$experimental_thread_sampler_enabled",
+
+      # mist-os / Micro Kernel
+      "__mist_os__"
     ]
 
     if (kernel_no_userabi) {

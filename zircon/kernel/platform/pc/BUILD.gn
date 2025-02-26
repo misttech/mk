@@ -61,6 +61,7 @@ zx_library("pc") {
     "//zircon/third_party/ulib/cksum",
 
     # PCI Support
+    "//vendor/misttech/dev/pci",
     "//zircon/kernel/lib/kpci",
   ]
   public_deps = [
