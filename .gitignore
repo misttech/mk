@@ -33,7 +33,7 @@
 *.orig
 *.pyc
 *.code-workspace
-!fuchsia.code-workspace
+!mk.code-workspace
 *.sublime-project
 *.sublime-workspace
 *.swp
@@ -197,7 +197,8 @@ tables_generator_tests_*.txt
 /third_party/Vulkan-ValidationLayers/src
 
 /tmp/
-/vendor/
+/vendor/*
+!/vendor/misttech
 /build/secondary/third_party/ffmpeg
 /build/secondary/third_party/protobuf
 
