@@ -59,6 +59,9 @@ zx_library("pc") {
     "//zircon/system/ulib/smbios",
     "//zircon/system/ulib/uart",
     "//zircon/third_party/ulib/cksum",
+
+    # PCI Support
+    "//zircon/kernel/lib/kpci",
   ]
   public_deps = [
     # <platform/pc/smbios.h> has #include <lib/smbios/smbios.h>.
