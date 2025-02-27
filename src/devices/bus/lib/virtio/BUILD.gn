@@ -42,6 +42,7 @@ source_set("virtio-common") {
   public_deps = [
     ":virtio-headers",
     "//zircon/kernel/dev/pcie:headers",
+    "//zircon/kernel/object:headers",
   ]
   deps = [
     "//sdk/lib/stdcompat",

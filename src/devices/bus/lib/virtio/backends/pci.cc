@@ -11,35 +11,33 @@
 #include <zircon/errors.h>
 // #include <zircon/status.h>
 //  #include <zircon/syscalls/port.h>
-
 #include <trace.h>
 
 #include <algorithm>
 
 #include <fbl/auto_lock.h>
 #include <fbl/mutex.h>
+#include <object/pci_interrupt_dispatcher.h>
 #include <virtio/virtio.h>
 
 #define LOCAL_TRACE 0
 
 namespace virtio {
 
-PciBackend::PciBackend(fbl::RefPtr<PcieDevice> pci, DeviceInfo info)
+PciBackend::PciBackend(KernelHandle<PciDeviceDispatcher> pci, DeviceInfo info)
     : pci_(std::move(pci)), info_(info) {
   snprintf(tag_, sizeof(tag_), "pci[%02x:%02x.%1x]", info_.bus_id, info_.dev_id, info_.func_id);
 }
 
 zx_status_t PciBackend::Bind() {
-  // zx::interrupt interrupt;
-  // zx_status_t status = zx::port::create(/*options=*/ZX_PORT_BIND_TO_INTERRUPT, &wait_port_);
-  zx_status_t status = ZX_OK;
+  zx_rights_t rights;
+  zx_status_t status = PortDispatcher::Create(ZX_PORT_BIND_TO_INTERRUPT, &wait_port_, &rights);
   if (status != ZX_OK) {
     LTRACEF_LEVEL(2, "cannot create wait port: %d", status);
     return status;
   }
 
   // enable bus mastering
-  // status = pci().SetBusMastering(true);
   status = pci().EnableBusMaster(true);
   if (status != ZX_OK) {
     LTRACEF_LEVEL(2, "cannot enable bus master: %d", status);
@@ -86,16 +84,17 @@ zx_status_t PciBackend::ConfigureInterruptMode() {
 
   // Legacy only supports 1 IRQ, but for MSI-X we only need 2
   for (uint32_t i = 0; i < irq_cnt; i++) {
-    InterruptHandler interrupt = {};
-    // status = pci().MapInterrupt(i, &interrupt);
-    // if (status != ZX_OK) {
-    //   LTRACEF_LEVEL(2, "Failed to map interrupt %u: %d", i, status);
-    //   return status;
-    // }
+    KernelHandle<InterruptDispatcher> interrupt;
+    zx_rights_t rights;
+    status = pci().MapInterrupt(i, &interrupt, &rights);
+    if (status != ZX_OK) {
+      LTRACEF_LEVEL(2, "Failed to map interrupt %u: %d", i, status);
+      return status;
+    }
 
     // Use the interrupt index as the key so we can ack the correct interrupt after
     // a port wait.
-    // status = interrupt.bind(wait_port_, /*key=*/i, /*options=*/0);
+    status = interrupt.dispatcher()->Bind(wait_port_.dispatcher(), i);
     if (status != ZX_OK) {
       LTRACEF_LEVEL(2, "Failed to bind interrupt %u: %d", i, status);
       return status;
@@ -114,19 +113,18 @@ zx_status_t PciBackend::ConfigureInterruptMode() {
 }
 
 zx::result<uint32_t> PciBackend::WaitForInterrupt() {
-  // zx_port_packet packet;
-  // zx_status_t status = wait_port_.wait(zx::deadline_after(zx::msec(100)), &packet);
-  // if (status != ZX_OK) {
-  //   return zx::error(status);
-  // }
-
-  // return zx::ok(packet.key);
-  return zx::ok(0);
+  zx_port_packet_t pp;
+  zx_status_t st =
+      wait_port_.dispatcher()->Dequeue(Deadline::after_mono(zx_duration_from_msec(100)), &pp);
+  if (st != ZX_OK) {
+    return zx::error(st);
+  }
+  return zx::ok(pp.key);
 }
 
 void PciBackend::InterruptAck(uint32_t key) {
   ZX_DEBUG_ASSERT(key < irq_handles().size());
-  // irq_handles()[key].ack();
+  irq_handles()[key].dispatcher()->Ack();
 }
 
 }  // namespace virtio

@@ -9,12 +9,15 @@
 // #include <lib/device-protocol/pci.h>
 // #include <lib/mmio/mmio.h>
 #include <lib/virtio/backends/backend.h>
-
-#include <dev/pcie_device.h>
-// #include <lib/zx/port.h>
 #include <zircon/compiler.h>
 
 #include <optional>
+
+#include <dev/pcie_device.h>
+#include <object/handle.h>
+#include <object/pci_device_dispatcher.h>
+#include <object/port_dispatcher.h>
+#include <object/vm_object_dispatcher.h>
 
 namespace virtio {
 
@@ -24,14 +27,10 @@ struct DeviceInfo {
   uint8_t func_id;
 };
 
-struct pci_bar_t {
-  uint64_t addr;
-  size_t size;
-  bool io;
-  bool prefetchable;
-  bool size_64;
-  bool valid;
-};
+typedef struct {
+  // |vaddr| points to the content starting at |offset| in |vmo|.
+  MMIO_PTR void* vaddr;
+} mmio_buffer_t;
 
 enum class CapabilityId : uint8_t {
   kNullId = 0x00,
@@ -60,7 +59,7 @@ enum class CapabilityId : uint8_t {
 
 class PciBackend : public Backend {
  public:
-  PciBackend(fbl::RefPtr<PcieDevice> pci, DeviceInfo info);
+  PciBackend(KernelHandle<PciDeviceDispatcher> pci, DeviceInfo info);
   zx_status_t Bind() final;
   virtual zx_status_t Init() = 0;
   const char* tag() { return tag_; }
@@ -75,16 +74,16 @@ class PciBackend : public Backend {
   static constexpr uint16_t kMsiQueueVector = 1;
 
  protected:
-  PcieDevice& pci() { return *pci_; }
+  PciDeviceDispatcher& pci() { return *pci_.dispatcher(); }
   DeviceInfo info() { return info_; }
   fbl::Mutex& lock() { return lock_; }
-  // zx::port& wait_port() { return wait_port_; }
+  KernelHandle<PortDispatcher>& wait_port() { return wait_port_; }
 
  private:
-  fbl::RefPtr<PcieDevice> pci_;
+  KernelHandle<PciDeviceDispatcher> pci_;
   DeviceInfo info_;
   fbl::Mutex lock_;
-  // zx::port wait_port_;
+  KernelHandle<PortDispatcher> wait_port_;
   char tag_[16];  // pci[XX:XX.X] + \0, aligned to 8
   DISALLOW_COPY_ASSIGN_AND_MOVE(PciBackend);
 };
@@ -141,9 +140,10 @@ class PciLegacyIoInterface : public LegacyIoInterface {
 // configuration structures when MSI-X is enabled.
 class PciLegacyBackend : public PciBackend {
  public:
-  PciLegacyBackend(fbl::RefPtr<PcieDevice> pci, DeviceInfo info)
+  PciLegacyBackend(KernelHandle<PciDeviceDispatcher> pci, DeviceInfo info)
       : PciBackend(std::move(pci), info), legacy_io_(PciLegacyIoInterface::Get()) {}
-  PciLegacyBackend(fbl::RefPtr<PcieDevice> pci, DeviceInfo info, LegacyIoInterface* interface)
+  PciLegacyBackend(KernelHandle<PciDeviceDispatcher> pci, DeviceInfo info,
+                   LegacyIoInterface* interface)
       : PciBackend(std::move(pci), info), legacy_io_(interface) {}
   PciLegacyBackend(const PciLegacyBackend&) = delete;
   PciLegacyBackend& operator=(const PciLegacyBackend&) = delete;
@@ -191,7 +191,7 @@ class PciLegacyBackend : public PciBackend {
 // PciModernBackend is for v1.0+ Virtio using MMIO mapped bars and PCI capabilities.
 class PciModernBackend : public PciBackend {
  public:
-  PciModernBackend(fbl::RefPtr<PcieDevice> pci, DeviceInfo info)
+  PciModernBackend(KernelHandle<PciDeviceDispatcher> pci, DeviceInfo info)
       : PciBackend(std::move(pci), info) {}
   // The dtor handles cleanup of allocated bars because we cannot tear down
   // the mappings safely while the virtio device is being used by a driver.
@@ -210,7 +210,7 @@ class PciModernBackend : public PciBackend {
   zx_status_t ReadVirtioCap64(uint8_t cap_config_offset, virtio_pci_cap& cap,
                               virtio_pci_cap64* cap64_out);
 
-  // zx_status_t GetSharedMemoryVmo(zx::vmo* vmo_out) override;
+  // zx_status_t GetSharedMemoryVmo(KernelHandle<VmObjectDispatcher>* vmo_out) override;
 
   // These handle writing to/from a device's device config to allow derived
   // virtio devices to work with fields only they know about.
@@ -240,10 +240,10 @@ class PciModernBackend : public PciBackend {
   void RingKick(uint16_t ring_index) final;
 
  private:
-  // zx_status_t GetBarVmo(uint8_t bar, zx::vmo* vmo_out);
+  zx_status_t GetBar(uint8_t bar_id, pcie_bar_info_t* bar_out);
   zx_status_t MapBar(uint8_t bar);
 
-  pci_bar_t bar_[6];
+  std::optional<mmio_buffer_t> bar_[6];
 
   uintptr_t notify_base_ = 0;
   volatile uint32_t* isr_status_ = nullptr;
