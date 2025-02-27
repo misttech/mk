@@ -63,6 +63,11 @@ zx_library("pc") {
     # PCI Support
     "//vendor/misttech/dev/pci",
     "//zircon/kernel/lib/kpci",
+
+    # Virtio Support
+    "//src/devices/block/drivers/virtio:virtio_block",
+
+    #"//third_party/lk/dev/virtio/net",
   ]
   public_deps = [
     # <platform/pc/smbios.h> has #include <lib/smbios/smbios.h>.
