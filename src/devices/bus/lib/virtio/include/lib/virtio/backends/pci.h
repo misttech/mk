@@ -1,3 +1,4 @@
+// Copyright 2025 Mist Tecnologia Ltda. All rights reserved.
 // Copyright 2017 The Fuchsia Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
@@ -5,11 +6,9 @@
 #ifndef SRC_DEVICES_BUS_LIB_VIRTIO_INCLUDE_LIB_VIRTIO_BACKENDS_PCI_H_
 #define SRC_DEVICES_BUS_LIB_VIRTIO_INCLUDE_LIB_VIRTIO_BACKENDS_PCI_H_
 
-// #include <lib/ddk/hw/inout.h>
-// #include <lib/device-protocol/pci.h>
-// #include <lib/mmio/mmio.h>
 #include <lib/virtio/backends/backend.h>
 #include <zircon/compiler.h>
+#include <zircon/syscalls/pci.h>
 
 #include <optional>
 
@@ -21,45 +20,13 @@
 
 namespace virtio {
 
-struct DeviceInfo {
-  uint8_t bus_id;
-  uint8_t dev_id;
-  uint8_t func_id;
-};
-
 typedef struct {
-  // |vaddr| points to the content starting at |offset| in |vmo|.
   MMIO_PTR void* vaddr;
 } mmio_buffer_t;
 
-enum class CapabilityId : uint8_t {
-  kNullId = 0x00,
-  kPciPwrMgmt = 0x01,
-  kAgp = 0x02,
-  kVitalProductData = 0x03,
-  kSlotIdentification = 0x04,
-  kMsi = 0x05,
-  kCompactPciHotswap = 0x06,
-  kPcix = 0x07,
-  kHypertransport = 0x08,
-  kVendor = 0x09,
-  kDebugPort = 0x0A,
-  kCompactPciCrc = 0x0B,
-  kPciHotPlug = 0x0C,
-  kPciBridgeSubsystemVid = 0x0D,
-  kAgp8x = 0x0E,
-  kSecureDevice = 0x0F,
-  kPciExpress = 0x10,
-  kMsix = 0x11,
-  kSataDataNdxCfg = 0x12,
-  kAdvancedFeatures = 0x13,
-  kEnhancedAllocation = 0x14,
-  kFlatteningPortalBridge = 0x15,
-};
-
 class PciBackend : public Backend {
  public:
-  PciBackend(KernelHandle<PciDeviceDispatcher> pci, DeviceInfo info);
+  PciBackend(KernelHandle<PciDeviceDispatcher> pci, zx_pcie_device_info_t info);
   zx_status_t Bind() final;
   virtual zx_status_t Init() = 0;
   const char* tag() { return tag_; }
@@ -75,13 +42,13 @@ class PciBackend : public Backend {
 
  protected:
   PciDeviceDispatcher& pci() { return *pci_.dispatcher(); }
-  DeviceInfo info() { return info_; }
+  zx_pcie_device_info_t info() { return info_; }
   fbl::Mutex& lock() { return lock_; }
   KernelHandle<PortDispatcher>& wait_port() { return wait_port_; }
 
  private:
   KernelHandle<PciDeviceDispatcher> pci_;
-  DeviceInfo info_;
+  zx_pcie_device_info_t info_;
   fbl::Mutex lock_;
   KernelHandle<PortDispatcher> wait_port_;
   char tag_[16];  // pci[XX:XX.X] + \0, aligned to 8
@@ -140,9 +107,9 @@ class PciLegacyIoInterface : public LegacyIoInterface {
 // configuration structures when MSI-X is enabled.
 class PciLegacyBackend : public PciBackend {
  public:
-  PciLegacyBackend(KernelHandle<PciDeviceDispatcher> pci, DeviceInfo info)
+  PciLegacyBackend(KernelHandle<PciDeviceDispatcher> pci, zx_pcie_device_info_t info)
       : PciBackend(std::move(pci), info), legacy_io_(PciLegacyIoInterface::Get()) {}
-  PciLegacyBackend(KernelHandle<PciDeviceDispatcher> pci, DeviceInfo info,
+  PciLegacyBackend(KernelHandle<PciDeviceDispatcher> pci, zx_pcie_device_info_t info,
                    LegacyIoInterface* interface)
       : PciBackend(std::move(pci), info), legacy_io_(interface) {}
   PciLegacyBackend(const PciLegacyBackend&) = delete;
@@ -191,7 +158,7 @@ class PciLegacyBackend : public PciBackend {
 // PciModernBackend is for v1.0+ Virtio using MMIO mapped bars and PCI capabilities.
 class PciModernBackend : public PciBackend {
  public:
-  PciModernBackend(KernelHandle<PciDeviceDispatcher> pci, DeviceInfo info)
+  PciModernBackend(KernelHandle<PciDeviceDispatcher> pci, zx_pcie_device_info_t info)
       : PciBackend(std::move(pci), info) {}
   // The dtor handles cleanup of allocated bars because we cannot tear down
   // the mappings safely while the virtio device is being used by a driver.
@@ -209,8 +176,6 @@ class PciModernBackend : public PciBackend {
   zx_status_t ReadVirtioCap(uint8_t offset, virtio_pci_cap* cap);
   zx_status_t ReadVirtioCap64(uint8_t cap_config_offset, virtio_pci_cap& cap,
                               virtio_pci_cap64* cap64_out);
-
-  // zx_status_t GetSharedMemoryVmo(KernelHandle<VmObjectDispatcher>* vmo_out) override;
 
   // These handle writing to/from a device's device config to allow derived
   // virtio devices to work with fields only they know about.

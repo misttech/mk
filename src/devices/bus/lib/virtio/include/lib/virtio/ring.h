@@ -1,3 +1,4 @@
+// Copyright 2025 Mist Tecnologia Ltda. All rights reserved.
 // Copyright 2016 The Fuchsia Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
@@ -5,12 +6,17 @@
 #define SRC_DEVICES_BUS_LIB_VIRTIO_INCLUDE_LIB_VIRTIO_RING_H_
 
 #include <lib/ddk/hw/arch_ops.h>
-// #include <lib/dma-buffer/buffer.h>
 #include <zircon/types.h>
 
 #include <virtio/virtio_ring.h>
 
 namespace virtio {
+
+struct ContiguousBuffer {
+  void* ptr;
+  size_t size;
+  zx_paddr_t pa;
+};
 
 class Device;
 
@@ -63,7 +69,7 @@ class Ring {
  private:
   Device* device_ = nullptr;
 
-  // std::unique_ptr<dma_buffer::ContiguousBuffer> ring_buffer_;
+  ContiguousBuffer ring_buffer_;
 
   uint16_t index_ = 0;
 

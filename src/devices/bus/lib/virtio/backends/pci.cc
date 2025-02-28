@@ -1,17 +1,12 @@
+// Copyright 2025 Mist Tecnologia Ltda. All rights reserved.
 // Copyright 2016 The Fuchsia Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
 #include <assert.h>
-// #include <lib/device-protocol/pci.h>
 #include <lib/virtio/backends/pci.h>
-// #include <lib/zx/handle.h>
-// #include <lib/zx/interrupt.h>
-// #include <lib/zx/port.h>
-#include <zircon/errors.h>
-// #include <zircon/status.h>
-//  #include <zircon/syscalls/port.h>
 #include <trace.h>
+#include <zircon/errors.h>
 
 #include <algorithm>
 
@@ -20,12 +15,14 @@
 #include <object/pci_interrupt_dispatcher.h>
 #include <virtio/virtio.h>
 
+#include <ktl/enforce.h>
+
 #define LOCAL_TRACE 0
 
 namespace virtio {
 
-PciBackend::PciBackend(KernelHandle<PciDeviceDispatcher> pci, DeviceInfo info)
-    : pci_(std::move(pci)), info_(info) {
+PciBackend::PciBackend(KernelHandle<PciDeviceDispatcher> pci, zx_pcie_device_info_t info)
+    : pci_(ktl::move(pci)), info_(info) {
   snprintf(tag_, sizeof(tag_), "pci[%02x:%02x.%1x]", info_.bus_id, info_.dev_id, info_.func_id);
 }
 
@@ -33,20 +30,20 @@ zx_status_t PciBackend::Bind() {
   zx_rights_t rights;
   zx_status_t status = PortDispatcher::Create(ZX_PORT_BIND_TO_INTERRUPT, &wait_port_, &rights);
   if (status != ZX_OK) {
-    LTRACEF_LEVEL(2, "cannot create wait port: %d", status);
+    LTRACEF("cannot create wait port: %d\n", status);
     return status;
   }
 
   // enable bus mastering
   status = pci().EnableBusMaster(true);
   if (status != ZX_OK) {
-    LTRACEF_LEVEL(2, "cannot enable bus master: %d", status);
+    LTRACEF("cannot enable bus master: %d\n", status);
     return status;
   }
 
   status = ConfigureInterruptMode();
   if (status != ZX_OK) {
-    LTRACEF_LEVEL(2, "cannot configure IRQs: %d", status);
+    LTRACEF("cannot configure IRQs: %d\n", status);
     return status;
   }
 
@@ -78,7 +75,7 @@ zx_status_t PciBackend::ConfigureInterruptMode() {
   }
 
   if (irq_cnt == 0) {
-    LTRACEF_LEVEL(2, "Failed to configure a virtio IRQ mode: %d", status);
+    LTRACEF("Failed to configure a virtio IRQ mode: %d\n", status);
     return status;
   }
 
@@ -88,7 +85,7 @@ zx_status_t PciBackend::ConfigureInterruptMode() {
     zx_rights_t rights;
     status = pci().MapInterrupt(i, &interrupt, &rights);
     if (status != ZX_OK) {
-      LTRACEF_LEVEL(2, "Failed to map interrupt %u: %d", i, status);
+      LTRACEF("Failed to map interrupt %u: %d\n", i, status);
       return status;
     }
 
@@ -96,18 +93,18 @@ zx_status_t PciBackend::ConfigureInterruptMode() {
     // a port wait.
     status = interrupt.dispatcher()->Bind(wait_port_.dispatcher(), i);
     if (status != ZX_OK) {
-      LTRACEF_LEVEL(2, "Failed to bind interrupt %u: %d", i, status);
+      LTRACEF("Failed to bind interrupt %u: %d\n", i, status);
       return status;
     }
     fbl::AllocChecker ac;
     irq_handles().push_back(ktl::move(interrupt), &ac);
     if (!ac.check()) {
-      LTRACEF_LEVEL(2, "Failed to allocate interrupt %u", i);
+      LTRACEF("Failed to allocate interrupt %u\n", i);
       return ZX_ERR_NO_MEMORY;
     }
   }
   irq_mode() = mode;
-  LTRACEF_LEVEL(2, "using %s IRQ mode (irq_cnt = %u)",
+  LTRACEF_LEVEL(2, "using %s IRQ mode (irq_cnt = %u)\n",
                 (irq_mode() == PCIE_IRQ_MODE_MSI_X ? "MSI-X" : "legacy"), irq_cnt);
   return ZX_OK;
 }

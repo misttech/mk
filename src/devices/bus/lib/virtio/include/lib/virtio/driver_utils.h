@@ -5,7 +5,6 @@
 #ifndef SRC_DEVICES_BUS_LIB_VIRTIO_INCLUDE_LIB_VIRTIO_DRIVER_UTILS_H_
 #define SRC_DEVICES_BUS_LIB_VIRTIO_INCLUDE_LIB_VIRTIO_DRIVER_UTILS_H_
 
-#include <lib/ddk/device.h>
 #include <lib/zx/result.h>
 #include <stdlib.h>
 #include <zircon/compiler.h>
@@ -13,14 +12,14 @@
 
 #include <type_traits>
 
+#include <object/pci_device_dispatcher.h>
+
 #include "device.h"
 
 namespace virtio {
-// Get the bti and virtio backend for a given pci virtio device.
-zx::result<std::pair<zx::bti, std::unique_ptr<virtio::Backend>>> GetBtiAndBackend(
-    zx_device_t* bus_device);
-
-zx::result<std::pair<zx::bti, std::unique_ptr<virtio::Backend>>> GetBtiAndBackend(ddk::Pci pci);
+// Get the virtio backend for a given pci virtio device.
+zx::result<std::unique_ptr<virtio::Backend>> GetBackend(KernelHandle<PciDeviceDispatcher> pci,
+                                                        zx_pcie_device_info_t info);
 
 // Creates a Virtio device by determining the backend and moving that into
 // |VirtioDevice|'s constructor, then call's the device's Init() method. The
@@ -28,13 +27,17 @@ zx::result<std::pair<zx::bti, std::unique_ptr<virtio::Backend>>> GetBtiAndBacken
 // is released to devmgr.
 template <class VirtioDevice, class = typename std::enable_if<
                                   std::is_base_of<virtio::Device, VirtioDevice>::value>::type>
-zx_status_t CreateAndBind(void* /*ctx*/, zx_device_t* device) {
-  auto bti_and_backend = GetBtiAndBackend(device);
-  if (!bti_and_backend.is_ok()) {
-    return bti_and_backend.status_value();
+zx_status_t CreateAndBind(void* /*ctx*/, KernelHandle<PciDeviceDispatcher> device,
+                          zx_pcie_device_info_t info) {
+  auto backend = GetBackend(ktl::move(device), info);
+  if (!backend.is_ok()) {
+    return backend.status_value();
   }
-  auto dev = std::make_unique<VirtioDevice>(device, std::move(bti_and_backend.value().first),
-                                            std::move(bti_and_backend.value().second));
+  fbl::AllocChecker ac;
+  auto dev = ktl::make_unique<VirtioDevice>(&ac, std::move(backend.value()));
+  if (!ac.check()) {
+    return ZX_ERR_NO_MEMORY;
+  }
   zx_status_t status = dev->Init();
   if (status == ZX_OK) {
     // devmgr is now in charge of the memory for dev

@@ -1,79 +1,63 @@
+// Copyright 2025 Mist Tecnologia Ltda. All rights reserved.
 // Copyright 2020 The Fuchsia Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include <lib/device-protocol/pci.h>
+#include "lib/virtio/driver_utils.h"
+
 #include <lib/virtio/backends/pci.h>
-#include <lib/virtio/driver_utils.h>
 #include <lib/zx/result.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <trace.h>
 #include <zircon/compiler.h>
 #include <zircon/types.h>
 
 #include <memory>
 
-#include "src/graphics/display/lib/driver-framework-migration-utils/logging/zxlogf.h"
+#include <dev/pcie_device.h>
+#include <object/pci_device_dispatcher.h>
+
+#include <ktl/enforce.h>
 
 namespace virtio {
 
-zx::result<std::pair<zx::bti, std::unique_ptr<virtio::Backend>>> GetBtiAndBackend(
-    zx_device_t* bus_device) {
-  ddk::Pci pci(bus_device, "pci");
-  if (!pci.is_valid()) {
-    pci = ddk::Pci(bus_device);
-  }
-
-  if (!pci.is_valid()) {
-    zxlogf(ERROR, "virtio failed to find PciProtocol");
-    return zx::error(ZX_ERR_NOT_FOUND);
-  }
-
-  return GetBtiAndBackend(std::move(pci));
-}
-
-zx::result<std::pair<zx::bti, std::unique_ptr<virtio::Backend>>> GetBtiAndBackend(ddk::Pci pci) {
-  zx_status_t status;
-  if (!pci.is_valid()) {
-    zxlogf(ERROR, "ddk::Pci invalid");
-    return zx::error(ZX_ERR_NOT_FOUND);
-  }
-
-  fuchsia_hardware_pci::wire::DeviceInfo info;
-  status = pci.GetDeviceInfo(&info);
-  if (status != ZX_OK) {
-    return zx::error(status);
-  }
-
-  zx::bti bti;
-  status = pci.GetBti(0, &bti);
-  if (status != ZX_OK) {
-    return zx::error(status);
-  }
-
+zx::result<ktl::unique_ptr<virtio::Backend>> GetBackend(KernelHandle<PciDeviceDispatcher> pci,
+                                                        zx_pcie_device_info_t info) {
   // Due to the similarity between Virtio 0.9.5 legacy devices and Virtio 1.0
   // transitional devices we need to check whether modern capabilities exist.
   // If no vendor capabilities are found then we will default to the legacy
   // interface.
-  std::unique_ptr<virtio::Backend> backend = nullptr;
-  uint8_t offset = 0;
-  bool is_modern =
-      (pci.GetFirstCapability(fuchsia_hardware_pci::CapabilityId::kVendor, &offset) == ZX_OK);
-  if (is_modern) {
-    backend = std::make_unique<virtio::PciModernBackend>(std::move(pci), info);
-  } else {
-    backend = std::make_unique<virtio::PciLegacyBackend>(std::move(pci), info);
-  }
-  zxlogf(TRACE, "virtio %02x:%02x.%1x using %s PCI backend", info.bus_id, info.dev_id, info.func_id,
-         (is_modern) ? "modern" : "legacy");
+  ktl::unique_ptr<virtio::Backend> backend = nullptr;
 
-  status = backend->Bind();
+  auto device = pci.dispatcher()->device();
+  auto cap = device->capabilities().find_if(
+      [](const auto& cap) { return cap.id() == PCIE_CAP_ID_VENDOR; });
+
+  bool is_modern = cap != device->capabilities().end();
+
+  if (is_modern) {
+    fbl::AllocChecker ac;
+    backend = ktl::make_unique<virtio::PciModernBackend>(&ac, ktl::move(pci), info);
+    if (!ac.check()) {
+      dprintf(CRITICAL, "Failed to allocate memory for PCI backend\n");
+      return zx::error(ZX_ERR_NO_MEMORY);
+    }
+  } else {
+    dprintf(CRITICAL, "virtio PCI cap not found, legacy mode not supported\n");
+    return zx::error(ZX_ERR_NOT_SUPPORTED);
+  }
+
+  dprintf(INFO, "virtio %02x:%02x.%1x using %s PCI backend\n", info.bus_id, info.dev_id,
+          info.func_id, (is_modern) ? "modern" : "legacy");
+
+  zx_status_t status = backend->Bind();
   if (status != ZX_OK) {
     return zx::error(status);
   }
 
-  return zx::ok(std::make_pair(std::move(bti), std::move(backend)));
+  return zx::ok(ktl::move(backend));
 }
 
 }  // namespace virtio

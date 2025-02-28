@@ -35,8 +35,7 @@ source_set("virtio-common") {
     #"backends/pci_legacy.cc",
     "backends/pci_modern.cc",
     "device.cc",
-
-    #"driver_utils.cc",
+    "driver_utils.cc",
     "ring.cc",
   ]
   public_deps = [

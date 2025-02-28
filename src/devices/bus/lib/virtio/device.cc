@@ -17,17 +17,19 @@
 
 #include <pretty/hexdump.h>
 
+#include <ktl/enforce.h>
+
 #define LOCAL_TRACE 0
 
 namespace virtio {
 
-Device::Device(ktl::unique_ptr<Backend> backend) : backend_(std::move(backend)) {}
+Device::Device(ktl::unique_ptr<Backend> backend) : backend_(ktl::move(backend)) {}
 
 Device::~Device() { TRACEF("%s: exit", __func__); }
 
 void Device::Release() {
   backend_->Terminate();
-  irq_thread_should_exit_.store(true, std::memory_order_release);
+  irq_thread_should_exit_.store(true, ktl::memory_order_release);
   irq_thread_->Join(nullptr, ZX_TIME_INFINITE);
   backend_.reset();
 }
@@ -45,7 +47,7 @@ void Device::IrqWorker() {
         break;
       }
 
-      if (irq_thread_should_exit_.load(std::memory_order_relaxed)) {
+      if (irq_thread_should_exit_.load(ktl::memory_order_relaxed)) {
         LTRACEF_LEVEL(2, "terminating irq thread");
         break;
       }
@@ -98,15 +100,14 @@ int Device::IrqThreadEntry(void* arg) {
 }
 
 void Device::StartIrqThread() {
-  std::array<char, ZX_MAX_NAME_LEN> name{};
+  ktl::array<char, ZX_MAX_NAME_LEN> name{};
   snprintf(name.data(), name.size(), "%s-irq-worker", tag());
-  // thrd_create_with_name(&irq_thread_, IrqThreadEntry, this, name.data());
   irq_thread_ = Thread::Create(name.data(), IrqThreadEntry, this, DEFAULT_PRIORITY);
   irq_thread_->Resume();
 }
 
 void Device::CopyDeviceConfig(void* _buf, size_t len) const {
-  assert(_buf);
+  ZX_ASSERT(_buf);
 
   for (size_t i = 0; i < len; i++) {
     backend_->ReadDeviceConfig(static_cast<uint16_t>(i), static_cast<uint8_t*>(_buf) + i);
