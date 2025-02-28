@@ -596,8 +596,20 @@ void pci_init(uint level) {
     dprintf(CRITICAL, "acpi: error %d in pci_add_subtract_io_range", status);
   }
 
+#if 0
   // Add the MMIO range for the PCI configuration space
   status = pci_add_subtract_io_range(true /* mmio */, 0xb000'0000, 0x1000'0000, true /* add */);
+  if (status != ZX_OK) {
+    dprintf(CRITICAL, "acpi: error %d in pci_add_subtract_io_range", status);
+  }
+#endif
+
+  status = pci_add_subtract_io_range(true /* mmio */, 0xfebfa000, PAGE_SIZE, true /* add */);
+  if (status != ZX_OK) {
+    dprintf(CRITICAL, "acpi: error %d in pci_add_subtract_io_range", status);
+  }
+
+  status = pci_add_subtract_io_range(true /* mmio */, 0xfebe4000, 0x4000, true /* add */);
   if (status != ZX_OK) {
     dprintf(CRITICAL, "acpi: error %d in pci_add_subtract_io_range", status);
   }
