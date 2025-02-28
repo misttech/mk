@@ -1,3 +1,4 @@
+// Copyright 2025 Mist Tecnologia Ltda. All rights reserved.
 // Copyright 2016 The Fuchsia Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
@@ -13,7 +14,7 @@
 
 #include <memory>
 
-#include <kernel/semaphore.h>
+#include <kernel/event.h>
 #include <kernel/thread.h>
 #include <ktl/atomic.h>
 #include <virtio/block.h>
@@ -82,7 +83,7 @@ struct block_txn_t {
   size_t req_index;
   ktl::optional<size_t> discard_req_index;  // Only used if op is trim
   list_node_t node;
-  zx_handle_t pmt;
+  // zx_handle_t pmt;
 };
 
 class Ring;
@@ -135,7 +136,7 @@ class BlockDevice : public virtio::Device {
   // Saved block device configuration out of the pci config BAR.
   virtio_blk_config_t config_ = {};
 
-  // std::unique_ptr<dma_buffer::ContiguousBuffer> blk_req_buf_;
+  virtio::ContiguousBuffer blk_req_buf_;
   virtio_blk_req_t* blk_req_ = nullptr;
 
   zx_paddr_t blk_res_pa_ = 0;
@@ -167,16 +168,16 @@ class BlockDevice : public virtio::Device {
   // Pending txns and completion signal.
   DECLARE_MUTEX(BlockDevice) txn_lock_;
   list_node pending_txn_list_ = LIST_INITIAL_VALUE(pending_txn_list_);
-  Semaphore txn_signal_;
+  Event txn_signal_;
 
   // Worker state.
   Thread* worker_thread_ = nullptr;
   list_node worker_txn_list_ = LIST_INITIAL_VALUE(worker_txn_list_);
-  Semaphore worker_signal_;
-  std::atomic_bool worker_shutdown_ = false;
+  Event worker_signal_;
+  ktl::atomic<bool> worker_shutdown_ = false;
 
   Thread* watchdog_thread_ = nullptr;
-  Semaphore watchdog_signal_;
+  Event watchdog_signal_;
   ktl::atomic<bool> watchdog_shutdown_ = false;
 
   bool supports_discard_ = false;
