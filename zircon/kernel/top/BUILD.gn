@@ -33,6 +33,9 @@ source_set("top") {
     "//zircon/kernel/lib/version",
     "//zircon/kernel/phys:handoff",
     "//zircon/kernel/platform",
+
+    # MK
+    "//third_party/lk/lib/bio",
   ]
 
   # TODO(https://fxbug.dev/374753100): Remove this after soft transition.
